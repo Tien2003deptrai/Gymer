@@ -1,42 +1,67 @@
 const { User, Post } = require('../models');
-
+const bcrypt = require('bcrypt');
+const { accessToken, refreshToken } = require('../utils/generateToken');
 class UserController {
-    // Tạo người dùng mới
-    async createUser(req, res) {
+    async registerUser(req, res) {
         try {
-            const { email, password, name } = req.body;
-            const newUser = await User.create({ email, password, name });
-            res.status(201).json(newUser);
+            const { password, email } = req.body;
+
+            const existingUser = await User.findOne({
+                where: { email },
+            });
+
+            if (existingUser) {
+                return res.status(400).json({ error: 'Email already registered' });
+            }
+
+            const saltRounds = 5;
+            const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+            const newUser = await User.create({
+                email,
+                password: hashedPassword,
+            });
+
+            res.status(201).json({ message: 'User registered successfully', user: newUser });
         } catch (error) {
-            res.status(500).json({ error: 'Error creating user' });
+            console.error('Error registering user:', error);
+            res.status(500).json({ error: 'Error registering user' });
         }
     }
 
-    // Lấy tất cả người dùng
-    async getUsers(req, res) {
+    async loginUser(req, res) {
+        const { email, password } = req.body;
+
         try {
-            const users = await User.findAll(
-                {
-                    include: [{
-                        model: Post,
-                    }]
-                }
-            );
-            res.status(200).json(users);
+            const user = await User.findOne({ where: { email } });
+
+            if (!user) {
+                return res.status(400).json({ error: 'Invalid email or password' });
+            }
+
+            const passwordMatch = await bcrypt.compare(password, user.password);
+
+            if (!passwordMatch) {
+                return res.status(400).json({ error: 'Invalid email or password' });
+            }
+
+            const token = accessToken(user.id);
+            const refreshTokenJwt = refreshToken(user.id);
+
+            res.status(200).json({ message: 'Login successful', user, token, refreshTokenJwt });
         } catch (error) {
-            res.status(500).json({ error: 'Error fetching users' });
+            console.error(error);
+            res.status(500).json({ error: 'Login failed' });
         }
+
     }
 
-    // Lấy thông tin người dùng theo ID
-    async getUserById(req, res) {
+    async getAllUsers(req, res) {
         try {
-            const { id } = req.params;
-            const user = await User.findByPk(id);
-            if (!user) return res.status(404).json({ error: 'User not found' });
-            res.status(200).json(user);
+            const users = await User.findAll();
+            res.status(200).json({ message: 'success', users: users });
         } catch (error) {
-            res.status(500).json({ error: 'Error fetching user' });
+            res.status(500).json({ error: 'Login failed' });
         }
     }
 }

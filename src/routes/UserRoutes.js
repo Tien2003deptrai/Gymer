@@ -1,14 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const UserController = require('../controllers/UserController');
+const authenticateJWT = require('../middlewares/authMiddleware');
 
 // Tạo người dùng mới
-router.post('/users', UserController.createUser);
+router.post('/register', UserController.registerUser);
 
-// Lấy tất cả người dùng
-router.get('/users', UserController.getUsers);
+router.post('/login', UserController.loginUser);
 
-// Lấy người dùng theo ID
-router.get('/users/:id', UserController.getUserById);
+router.get('/', authenticateJWT, UserController.getAllUsers);
 
 module.exports = router;
